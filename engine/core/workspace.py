@@ -15,11 +15,22 @@ GLOBAL_CONFIG = defaultdict(dict)
 
 def register(dct :Any=GLOBAL_CONFIG, name=None, force=False):
     """
-        dct:
-            if dct is Dict, register foo into dct as key-value pair
-            if dct is Clas, register as modules attibute
-        force
-            whether force register.
+    模块注册装饰器，支持类/函数的动态注册
+
+    设计原理：
+    1. 通过装饰器模式实现模块的自动注册
+    2. 支持将类/函数注册到字典或模块属性
+    3. 提供强制注册选项用于覆盖已有注册
+
+    参数说明：
+    :param dct: 注册目标容器，支持字典或类（作为模块）
+    :param name: 自定义注册名称，默认使用类/函数名
+    :param force: 是否强制覆盖已有注册项
+    
+    注册策略：
+    - 函数注册：创建包装函数保留元数据
+    - 类注册：提取类架构信息生成配置模板
+    - 强制校验：非强制模式时检查名称冲突
     """
     def decorator(foo):
         register_name = foo.__name__ if name is None else name
@@ -57,10 +68,23 @@ def register(dct :Any=GLOBAL_CONFIG, name=None, force=False):
 
 def extract_schema(module: type):
     """
-    Args:
-        module (type),
-    Return:
-        Dict,
+    提取类架构信息生成配置模板
+
+    实现细节：
+    1. 解析__init__参数签名
+    2. 区分必需参数和默认参数
+    3. 记录类元信息（模块路径、注入字段等）
+
+    关键字段说明：
+    _name: 类原始名称
+    _pymodule: 类所在模块
+    _inject: 需要依赖注入的参数列表
+    _share: 全局共享的参数列表
+    _kwargs: 参数默认值字典
+
+    注意：
+    - 共享参数必须包含默认值
+    - 注入参数支持字符串引用或嵌套配置
     """
     argspec = inspect.getfullargspec(module.__init__)
     arg_names = [arg for arg in argspec.args if arg != 'self']
@@ -92,6 +116,22 @@ def extract_schema(module: type):
 
 def create(type_or_name, global_cfg=GLOBAL_CONFIG, **kwargs):
     """
+    动态实例化注册模块
+
+    工作流程：
+    1. 名称解析：根据类型或名称查找注册配置
+    2. 配置合并：整合默认参数、全局配置和运行时参数
+    3. 依赖注入：处理_inject字段实现自动装配
+    4. 实例创建：通过反射机制构造对象
+
+    注入策略：
+    - 字符串引用：从全局配置查找对应配置项
+    - 嵌套配置：支持多层级type字段配置解析
+    - 共享参数：优先使用全局配置中的同名参数
+
+    异常处理：
+    - 未注册模块抛出ValueError
+    - 参数不匹配抛出RuntimeError
     """
     assert type(type_or_name) in (type, str), 'create should be modules or name.'
 

@@ -22,20 +22,58 @@ __all__ = ['HGNetv2']
 
 
 class LearnableAffineBlock(nn.Module):
+    """
+    Learnable affine transformation block with scale and bias parameters
+    可学习的仿射变换模块，包含缩放因子和偏置项
+
+    Args:
+        scale_value (float): Initial value for scaling factor 缩放因子初始值
+        bias_value (float): Initial value for bias term 偏置项初始值
+
+    Formula:
+        output = scale * x + bias
+    """
     def __init__(
             self,
             scale_value=1.0,
             bias_value=0.0
     ):
         super().__init__()
+        # Learnable parameters with initial values
         self.scale = nn.Parameter(torch.tensor([scale_value]), requires_grad=True)
         self.bias = nn.Parameter(torch.tensor([bias_value]), requires_grad=True)
 
     def forward(self, x):
+        """
+        Forward pass applies affine transformation
+        前向传播执行仿射变换
+
+        Shape:
+            Input: (N, C, H, W)
+            Output: (N, C, H, W) (same as input)
+        """
         return self.scale * x + self.bias
 
 
 class ConvBNAct(nn.Module):
+    """
+    Conv-BN-Activation block with optional padding and LearnableAffineBlock
+    卷积-批归一化-激活模块，支持多种填充方式和可选的仿射变换
+
+    Args:
+        in_chs (int): 输入通道数
+        out_chs (int): 输出通道数
+        kernel_size (int): 卷积核尺寸
+        stride (int): 卷积步长
+        groups (int): 分组卷积数
+        padding (str): 'same'保持特征图尺寸，否则自动计算
+        use_act (bool): 是否使用激活函数
+        use_lab (bool): 是否使用可学习仿射变换
+
+    Configurations:
+        - When padding='same': 使用ZeroPad2d保持特征图尺寸
+        - Default padding: (kernel_size-1)//2 自动填充
+    """
     def __init__(
             self,
             in_chs,
@@ -123,9 +161,24 @@ class LightConvBNAct(nn.Module):
 
 
 class StemBlock(nn.Module):
-    # for HGNetv2
+    """
+    Stem block for HGNetv2 with multi-branch structure
+    HGNetv2的茎干模块，包含多分支结构
+
+    Architecture:
+        1. stem1: 3x3 conv stride2 下采样
+        2. stem2a/stem2b: 2x2 conv 分支结构
+        3. stem3: 特征融合后下采样
+        4. stem4: 1x1 conv 通道调整
+
+    Dimension Flow:
+        Input: (N, C, H, W)
+        After stem1: (N, mid_chs, H/2, W/2)
+        Final output: (N, out_chs, H/4, W/4)
+    """
     def __init__(self, in_chs, mid_chs, out_chs, use_lab=False):
         super().__init__()
+        # Stage1: Initial downsampling
         self.stem1 = ConvBNAct(
             in_chs,
             mid_chs,
@@ -197,6 +250,27 @@ class EseModule(nn.Module):
 
 
 class HG_Block(nn.Module):
+    """
+    Hierarchical Gradient Block (HG Block) with multiple convolution layers
+    层次梯度模块，包含多个卷积层和特征聚合
+
+    Args:
+        in_chs (int): 输入通道数
+        mid_chs (int): 中间层通道数
+        out_chs (int): 输出通道数
+        layer_num (int): 卷积层数量
+        kernel_size (int): 卷积核尺寸
+        residual (bool): 是否使用残差连接
+        light_block (bool): 是否使用轻量级卷积块
+        use_lab (bool): 是否使用可学习仿射变换
+        agg (str): 特征聚合方式 'ese'或'se'
+        drop_path (float): Stochastic depth rate
+
+    Structural Features:
+        - 使用多个卷积层提取多尺度特征
+        - 特征聚合模块融合不同层特征
+        - 可选残差连接增强梯度流动
+    """
     def __init__(
             self,
             in_chs,
