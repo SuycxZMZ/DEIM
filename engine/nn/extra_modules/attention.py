@@ -13,7 +13,7 @@ from einops import rearrange
 from torch import Tensor
 from typing import Tuple, Optional, List
 from ..modules.conv import Conv, autopad
-from ..backbone.TransNext import AggregatedAttention, get_relative_position_cpb
+# from ..backbone.TransNext import AggregatedAttention, get_relative_position_cpb
 from timm.models.layers import trunc_normal_
 
 __all__ = ['EMA', 'SimAM', 'SpatialGroupEnhance', 'BiLevelRoutingAttention', 'BiLevelRoutingAttention_nchw', 'TripletAttention', 

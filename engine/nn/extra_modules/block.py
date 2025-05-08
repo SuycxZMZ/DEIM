@@ -14,7 +14,7 @@ from .attention import *
 from .rep_block import *
 from .kernel_warehouse import KWConv
 from .dynamic_snake_conv import DySnakeConv
-from .ops_dcnv3.modules import DCNv3, DCNv3_DyHead
+# from .ops_dcnv3.modules import DCNv3, DCNv3_DyHead
 from .shiftwise_conv import ReparamLargeKernelConv
 from .mamba_vss import *
 from .fadc import AdaptiveDilatedConv

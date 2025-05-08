@@ -12,6 +12,7 @@ import os
 from .common import FrozenBatchNorm2d
 from ..core import register
 import logging
+from ..nn.extra_modules.attention import SimAM, EMA
 
 # Constants for initialization
 kaiming_normal_ = nn.init.kaiming_normal_
@@ -19,7 +20,6 @@ zeros_ = nn.init.zeros_
 ones_ = nn.init.ones_
 
 __all__ = ['HGNetv2']
-
 
 class LearnableAffineBlock(nn.Module):
     """
@@ -310,7 +310,10 @@ class HG_Block(nn.Module):
                 )
 
         # feature aggregation
+        # 特征集合模块三板斧，先做 1x1 卷积，再做attention，最后拼接
         total_chs = in_chs + layer_num * mid_chs
+        # print("--------------------------- feature aggregation ---------------------------\n")
+        # print(f"aggregation type is {agg}")
         if agg == 'se':
             aggregation_squeeze_conv = ConvBNAct(
                 total_chs,
@@ -330,7 +333,33 @@ class HG_Block(nn.Module):
                 aggregation_squeeze_conv,
                 aggregation_excitation_conv,
             )
-        else:
+        elif agg == 'ema' :
+            aggregation_conv = ConvBNAct(
+                total_chs,
+                out_chs,
+                kernel_size=1,
+                stride=1,
+                use_lab=use_lab,
+            )
+            att = EMA(out_chs)
+            self.aggregation = nn.Sequential(
+                aggregation_conv,
+                att,
+            )
+        elif agg == 'simam' :
+            aggregation_conv = ConvBNAct(
+                total_chs,
+                out_chs,
+                kernel_size=1,
+                stride=1,
+                use_lab=use_lab,
+            )
+            att = SimAM()
+            self.aggregation = nn.Sequential(
+                aggregation_conv,
+                att,
+            )
+        elif agg == 'ese' :
             aggregation_conv = ConvBNAct(
                 total_chs,
                 out_chs,
@@ -343,7 +372,9 @@ class HG_Block(nn.Module):
                 aggregation_conv,
                 att,
             )
-
+        else:
+          raise "aggregation type is not supported, please check the agg parameter !!!"
+        
         self.drop_path = nn.Dropout(drop_path) if drop_path else nn.Identity()
 
     def forward(self, x):
@@ -515,6 +546,7 @@ class HGNetv2(nn.Module):
                  freeze_at=0,
                  freeze_norm=True,
                  pretrained=True,
+                 agg='se',
                  local_model_dir='weight/hgnetv2/'):
         super().__init__()
         self.use_lab = use_lab
@@ -549,7 +581,8 @@ class HGNetv2(nn.Module):
                     downsample,
                     light_block,
                     kernel_size,
-                    use_lab))
+                    use_lab,
+                    agg))
 
         if freeze_at >= 0:
             self._freeze_parameters(self.stem)
