@@ -53,6 +53,7 @@ from .block import (
     RepVGGDW,
     ResNetLayer,
     SCDown,
+    ContextGuidedBlock_Down
 )
 from .conv import (
     CBAM,
@@ -151,4 +152,5 @@ __all__ = (
     "Attention",
     "PSA",
     "SCDown",
+    "ContextGuidedBlock_Down"
 )
